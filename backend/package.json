@@ -1,0 +1,26 @@
+{
+  "name": "gev-backend",
+  "version": "1.0.0",
+  "description": "GEV App Backend - Tecnologia que Automatiza Resultados",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.7"
+  },
+  "keywords": [
+    "gev",
+    "estoque",
+    "vendas",
+    "api"
+  ],
+  "author": "Seu Nome",
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
