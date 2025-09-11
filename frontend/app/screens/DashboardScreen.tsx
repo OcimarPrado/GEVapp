@@ -86,7 +86,6 @@ export default function DashboardScreen({ navigation }: any) {
       >
         <Text style={styles.secondaryButtonText}>📦 GERENCIAR PRODUTOS</Text>
       </TouchableOpacity>
-
       
       <TouchableOpacity 
         style={styles.secondaryButton} 

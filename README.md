@@ -7,15 +7,6 @@ O projeto possui funcionalidades de dashboard, cadastro de produtos, vendas, his
 
 ## Estrutura do Projeto
 
-# GEVapp
-
-Aplicativo de Gestão de Estoque e Vendas desenvolvido com React Native (frontend) e Node.js/Express (backend).  
-O projeto possui funcionalidades de dashboard, cadastro de produtos, vendas, histórico e relatórios.
-
----
-
-## Estrutura do Projeto
-
 
 GEVapp/
 ├── backend/ # Backend Node.js + banco SQLite

@@ -1,24 +1,20 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-type Sale = {
+type SaleItemProps = {
   productName: string;
   quantity: number;
   total: number;
   date: string;
 };
 
-type SaleItemProps = {
-  sale: Sale;
-}
-
-export default function SaleItem({ sale }: SaleItemProps) {
+export default function SaleItem({ productName, quantity, total, date }: SaleItemProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.name}>{sale.productName}</Text>
-      <Text style={styles.details}>Qtd: {sale.quantity}</Text>
-      <Text style={styles.details}>Total: R$ {sale.total.toFixed(2)}</Text>
-      <Text style={styles.date}>{sale.date}</Text>
+      <Text style={styles.name}>{productName}</Text>
+      <Text style={styles.details}>Qtd: {quantity}</Text>
+      <Text style={styles.details}>Total: R$ {total.toFixed(2)}</Text>
+      <Text style={styles.date}>{date}</Text>
     </View>
   );
 }
