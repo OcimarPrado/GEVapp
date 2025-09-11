@@ -1,177 +1,172 @@
 import React, { useEffect, useState } from "react";
-import { 
-  View, 
-  FlatList, 
-  ActivityIndicator, 
-  Alert, 
-  StyleSheet,
+import {
+  View,
   Text,
+  TextInput,
+  FlatList,
   TouchableOpacity,
-  TextInput
+  Image,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
-import { getProdutos } from "../api";
-import ProductItem from "../components/ProductItem";
+import { useIsFocused } from "@react-navigation/native";
+import { getProdutos } from "../api"; // GET produtos
 
 export default function ProductsScreen({ navigation }: any) {
   const [produtos, setProdutos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    carregarProdutos();
-  }, []);
+    if (isFocused) {
+      carregarProdutos();
+    }
+  }, [isFocused]);
 
-  const carregarProdutos = async (searchTerm?: string) => {
+  const carregarProdutos = async () => {
+    setLoading(true);
     try {
-      const response = await getProdutos(searchTerm);
-      setProdutos(response.data.data);
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível carregar os produtos");
+      const res = await getProdutos();
+      if (res?.data?.success) {
+        setProdutos(res.data.produtos);
+      } else {
+        Alert.alert("Erro", "Não foi possível carregar os produtos.");
+      }
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert("Erro", "Falha ao conectar com o servidor.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (text: string) => {
-    setSearch(text);
-    if (text.length > 2 || text.length === 0) {
-      carregarProdutos(text);
-    }
+  const filtrarProdutos = () => {
+    if (!search.trim()) return produtos;
+    return produtos.filter((p) =>
+      p.nome.toLowerCase().includes(search.toLowerCase())
+    );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loadingText}>Carregando produtos...</Text>
+  const renderProduto = ({ item }: any) => (
+    <View style={styles.productItem}>
+      <View style={styles.productImage}>
+        {item.imagem ? (
+          <Image source={{ uri: item.imagem }} style={{ width: 40, height: 40, borderRadius: 8 }} />
+        ) : (
+          <Text style={{ fontSize: 20 }}>📦</Text>
+        )}
       </View>
-    );
-  }
+      <View style={styles.productInfo}>
+        <Text style={styles.productName}>{item.nome}</Text>
+        <Text style={styles.productPrice}>R$ {item.preco_venda}</Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>← Voltar</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Estoque Inteligente</Text>
-        <Text style={styles.subtitle}>{produtos.length} produtos cadastrados</Text>
+      <View style={styles.screenHeader}>
+        <Text style={styles.headerTitle}>Estoque Inteligente</Text>
+        <Text style={styles.headerSubtitle}>
+          {produtos.length} produto{produtos.length !== 1 ? "s" : ""} cadastrados
+        </Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="🔍 Buscar produtos..."
-          value={search}
-          onChangeText={handleSearch}
-        />
-      </View>
-      
-      <FlatList
-        data={produtos}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <ProductItem 
-            produto={item} 
-            onEdit={() => navigation.navigate('NewProduct', { produto: item })}
-          />
-        )}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
+      <TextInput
+        style={styles.searchBar}
+        placeholder="🔍 Buscar produtos..."
+        value={search}
+        onChangeText={setSearch}
       />
 
+      {loading ? (
+        <ActivityIndicator size="large" color="#2196F3" style={{ marginTop: 50 }} />
+      ) : (
+        <FlatList
+          data={filtrarProdutos()}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderProduto}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        />
+      )}
+
       <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => navigation.navigate('NewProduct')}
+        style={styles.floatingAdd}
+        onPress={() =>
+          navigation.navigate("NewProduct", {
+            onSave: carregarProdutos, // função para atualizar lista
+          })
+        }
       >
-        <Text style={styles.floatingButtonText}>+</Text>
+        <Text style={{ fontSize: 28, color: "#fff" }}>+</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-  },
-  header: {
-    backgroundColor: '#2196F3',
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    left: 20,
-    top: 55,
-  },
-  backButtonText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'white',
-    opacity: 0.9,
-  },
-  searchContainer: {
+  container: { flex: 1, backgroundColor: "#f5f5f5", padding: 20 },
+  screenHeader: {
+    marginBottom: 20,
+    backgroundColor: "#2196F3",
     padding: 20,
+    borderRadius: 12,
   },
-  searchInput: {
-    backgroundColor: 'white',
+  headerTitle: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+  headerSubtitle: { color: "#fff", fontSize: 14, opacity: 0.9, marginTop: 5 },
+  searchBar: {
+    backgroundColor: "#fff",
     borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    fontSize: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  floatingButton: {
-    position: 'absolute',
-    bottom: 30,
-    right: 30,
-    width: 60,
-    height: 60,
-    backgroundColor: '#FF9800',
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
+    padding: 12,
+    marginBottom: 20,
+    fontSize: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  floatingButtonText: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
+  productItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  productImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: "#E3F2FD",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 15,
+  },
+  productInfo: { flex: 1 },
+  productName: { fontWeight: "600", color: "#333", marginBottom: 3 },
+  productPrice: { fontWeight: "bold", color: "#4CAF50" },
+  floatingAdd: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FF9800",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#FF9800",
+    shadowOpacity: 0.4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 5,
   },
 });

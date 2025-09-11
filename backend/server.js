@@ -644,10 +644,10 @@ app.get('/api/status', (req, res) => {
 // INICIAR SERVIDOR
 // ================================
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 🚀 GEV App Backend rodando!
-📡 Servidor: http://localhost:${PORT}
+📡 Servidor: http://192.168.100.106:${PORT}  <-- use seu IP local
 💾 Database: SQLite (gev_app.db)
 📱 API pronta para React Native!
 
@@ -665,6 +665,7 @@ app.listen(PORT, () => {
    GET  /api/status
   `);
 });
+
 
 // Tratamento de erros
 process.on('uncaughtException', (err) => {
