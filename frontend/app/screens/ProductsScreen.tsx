@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import { 
   View, 
   FlatList, 
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   TextInput
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { getProdutos } from "../api";
 import ProductItem from "../components/ProductItem";
 
@@ -17,12 +18,9 @@ export default function ProductsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    carregarProdutos();
-  }, []);
-
   const carregarProdutos = async (searchTerm?: string) => {
     try {
+      setLoading(true);
       const response = await getProdutos(searchTerm);
       setProdutos(response.data.data);
     } catch (error) {
@@ -31,6 +29,13 @@ export default function ProductsScreen({ navigation }: any) {
       setLoading(false);
     }
   };
+
+  // Recarregar sempre que a tela voltar ao foco
+  useFocusEffect(
+    useCallback(() => {
+      carregarProdutos();
+    }, [])
+  );
 
   const handleSearch = (text: string) => {
     setSearch(text);
@@ -75,8 +80,10 @@ export default function ProductsScreen({ navigation }: any) {
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <ProductItem 
-            produto={item} 
-            onEdit={() => navigation.navigate('NewProduct', { produto: item })}
+            name={item.nome} 
+            price={item.preco_venda} 
+            stock={item.estoque ?? 0}
+            onPress={() => navigation.navigate("NewProduct", { produto: item })}
           />
         )}
         contentContainerStyle={styles.listContainer}
@@ -85,7 +92,7 @@ export default function ProductsScreen({ navigation }: any) {
 
       <TouchableOpacity
         style={styles.floatingButton}
-        onPress={() => navigation.navigate('NewProduct')}
+        onPress={() => navigation.navigate("NewProduct")}
       >
         <Text style={styles.floatingButtonText}>+</Text>
       </TouchableOpacity>

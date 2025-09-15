@@ -2,19 +2,21 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 type ProductItemProps = {
-  name: string;
-  price: number;
-  stock: number;
+  produto: {
+    nome: string;
+    preco_venda: number;
+    estoque: number;
+  };
   onPress?: () => void;
 };
 
-export default function ProductItem({ name, price, stock, onPress }: ProductItemProps) {
+export default function ProductItem({ produto, onPress }: ProductItemProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View>
-        <Text style={styles.name}>{name}</Text>
-        <Text style={styles.details}>Preço: R$ {price.toFixed(2)}</Text>
-        <Text style={styles.details}>Estoque: {stock}</Text>
+        <Text style={styles.name}>{produto.nome}</Text>
+        <Text style={styles.details}>Preço: R$ {produto.preco_venda.toFixed(2)}</Text>
+        <Text style={styles.details}>Estoque: {produto.estoque}</Text>
       </View>
     </TouchableOpacity>
   );

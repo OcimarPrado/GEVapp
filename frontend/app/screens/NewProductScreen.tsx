@@ -35,7 +35,7 @@ export default function NewProductScreen({ navigation }: any) {
     try {
       await addProduto(formData);
       Alert.alert("Sucesso", "Produto cadastrado com sucesso!");
-      navigation.goBack();
+      navigation.navigate("Products", { reload: true }); // ✅ manda sinal de reload
     } catch {
       Alert.alert("Erro", "Não foi possível cadastrar o produto");
     }
@@ -48,6 +48,8 @@ export default function NewProductScreen({ navigation }: any) {
       <TextInput placeholder="Preço de venda" value={precoVenda} onChangeText={setPrecoVenda} keyboardType="numeric" style={{ marginBottom: 10, borderBottomWidth: 1 }} />
       <Button title="Escolher Imagem" onPress={escolherImagem} />
       <Button title="Salvar Produto" onPress={salvarProduto} />
+      <Button title="← Voltar" onPress={() => navigation.goBack()} />
+
     </View>
   );
 }
