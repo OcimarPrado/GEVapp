@@ -1,33 +1,88 @@
-import React, { useEffect, useState } from "react";
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  ActivityIndicator, 
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
   StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
   Alert,
-  ScrollView
-} from "react-native";
-import { getDashboard } from "../api";
+  RefreshControl
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { LineChart } from 'react-native-chart-kit';
+import { Dimensions } from 'react-native';
+
+interface DashboardData {
+  vendas_mes: number;
+  total_produtos: number;
+  lucro_mes: number;
+  vendas_pendentes: number;
+  historico: { dia: string; total_vendido: number; lucro: number }[];
+}
+
+const screenWidth = Dimensions.get('window').width - 40;
 
 export default function DashboardScreen({ navigation }: any) {
+  const [data, setData] = useState<DashboardData>({
+    vendas_mes: 0,
+    total_produtos: 0,
+    lucro_mes: 0,
+    vendas_pendentes: 0,
+    historico: [],
+  });
   const [loading, setLoading] = useState(true);
-  const [dados, setDados] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    carregarDashboard();
-  }, []);
-
-  const carregarDashboard = async () => {
+  const loadDashboardData = async (showLoading = true) => {
     try {
-      const response = await getDashboard();
-      setDados(response.data.data);
-    } catch (error) {
-      Alert.alert("Erro", "Não foi possível carregar o dashboard");
+      if (showLoading) setLoading(true);
+
+      const response = await fetch('http://localhost:3000/api/dashboard');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const result = await response.json();
+
+      setData({
+        vendas_mes: Number(result.cards.vendasMes) || 0,
+        total_produtos: Number(result.cards.produtos) || 0,
+        lucro_mes: Number(result.cards.lucroMes) || 0,
+        vendas_pendentes: Number(result.cards.pendentes) || 0,
+        historico: result.historico?.map(h => ({
+          dia: h.dia,
+          total_vendido: Number(h.total_vendido) || 0,
+          lucro: Number(h.lucro) || 0,
+        })) || [],
+      });
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Erro', 'Não foi possível carregar o dashboard\n' + error.message);
+      setData({
+        vendas_mes: 0,
+        total_produtos: 0,
+        lucro_mes: 0,
+        vendas_pendentes: 0,
+        historico: [],
+      });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboardData();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadDashboardData(false);
+  };
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   if (loading) {
     return (
@@ -38,186 +93,148 @@ export default function DashboardScreen({ navigation }: any) {
     );
   }
 
+  // Gráfico
+  const chartLabels = data.historico.map(h => h.dia);
+  const chartVendas = data.historico.map(h => h.total_vendido);
+  const chartLucro = data.historico.map(h => h.lucro);
+
+  // Média
+  const avgVendas = chartVendas.reduce((a, b) => a + b, 0) / chartVendas.length || 0;
+  const avgLucro = chartLucro.reduce((a, b) => a + b, 0) / chartLucro.length || 0;
+
+  const chartData = {
+    labels: chartLabels,
+    datasets: [
+      { data: chartVendas, color: () => '#2196F3', strokeWidth: 2, label: 'Vendas' },
+      { data: chartLucro, color: () => '#4CAF50', strokeWidth: 2, label: 'Lucro' },
+      { data: chartVendas.map(() => avgVendas), color: () => '#2196F3AA', strokeWidth: 1, withDots: false },
+      { data: chartLucro.map(() => avgLucro), color: () => '#4CAF50AA', strokeWidth: 1, withDots: false },
+    ],
+    legend: ['Vendas', 'Lucro', 'Média Vendas', 'Média Lucro'],
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Gestão de Estoque e Vendas!</Text>
-        <Text style={styles.subtitle}>Tecnologia que Automatiza Resultados</Text>
+        <Text style={styles.title}>GEV App</Text>
+        <Text style={styles.subtitle}>Gestão Empresarial de Vendas</Text>
       </View>
-      
-      {/* Cards de estatísticas */}
-      <View style={styles.statsGrid}>
-        <View style={[styles.statCard, styles.salesCard]}>
-          <Text style={styles.statValue}>
-            R$ {dados?.vendas_mes?.toFixed(2) || '0,00'}
-          </Text>
-          <Text style={styles.statLabel}>Vendas do Mês</Text>
+
+      {/* Cards */}
+      <View style={styles.cardsContainer}>
+        <View style={styles.row}>
+          <View style={[styles.card, styles.cardPrimary]}>
+            <Text style={styles.cardValue}>{formatCurrency(data.vendas_mes)}</Text>
+            <Text style={styles.cardLabel}>Vendas do Mês</Text>
+          </View>
+          <View style={[styles.card, styles.cardSuccess]}>
+            <Text style={styles.cardValue}>{formatCurrency(data.lucro_mes)}</Text>
+            <Text style={styles.cardLabel}>Lucro do Mês</Text>
+          </View>
         </View>
-        
-        <View style={[styles.statCard, styles.productsCard]}>
-          <Text style={styles.statValue}>{dados?.total_produtos || 0}</Text>
-          <Text style={styles.statLabel}>Produtos</Text>
-        </View>
-        
-        <View style={[styles.statCard, styles.profitCard]}>
-          <Text style={styles.statValue}>
-            R$ {dados?.lucro_mes?.toFixed(2) || '0,00'}
-          </Text>
-          <Text style={styles.statLabel}>Lucro Líquido</Text>
-        </View>
-        
-        <View style={[styles.statCard, styles.pendingCard]}>
-          <Text style={styles.statValue}>{dados?.vendas_pendentes || 0}</Text>
-          <Text style={styles.statLabel}>Pendências</Text>
+        <View style={styles.row}>
+          <View style={[styles.card, styles.cardInfo]}>
+            <Text style={styles.cardValue}>{data.total_produtos}</Text>
+            <Text style={styles.cardLabel}>Produtos Cadastrados</Text>
+          </View>
+          <View style={[styles.card, styles.cardWarning]}>
+            <Text style={styles.cardValue}>{data.vendas_pendentes}</Text>
+            <Text style={styles.cardLabel}>Vendas Pendentes</Text>
+          </View>
         </View>
       </View>
 
-      {/* Botões de navegação */}
-      <TouchableOpacity 
-        style={styles.mainButton} 
-        onPress={() => navigation.navigate('NewSale')}
-      >
-        <Text style={styles.mainButtonText}>🚀 NOVA VENDA</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.secondaryButton} 
-        onPress={() => navigation.navigate('Products')}
-      >
-        <Text style={styles.secondaryButtonText}>📦 GERENCIAR PRODUTOS</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.secondaryButton} 
-        onPress={() => navigation.navigate('SalesHistory')}
-      >
-        <Text style={styles.secondaryButtonText}>📋 HISTÓRICO DE VENDAS</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.secondaryButton} 
-        onPress={() => navigation.navigate('Reports')}
-      >
-        <Text style={styles.secondaryButtonText}>📊 VER RELATÓRIOS</Text>
-      </TouchableOpacity>
+      {/* Gráfico */}
+      <View style={styles.chartContainer}>
+        <Text style={styles.chartTitle}>Histórico de Vendas x Lucro</Text>
+        <LineChart
+          data={chartData}
+          width={screenWidth}
+          height={220}
+          chartConfig={{
+            backgroundColor: '#ffffff',
+            backgroundGradientFrom: '#f5f5f5',
+            backgroundGradientTo: '#f5f5f5',
+            decimalPlaces: 2,
+            color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
+            labelColor: () => '#333',
+            propsForDots: { r: '4', strokeWidth: '2', stroke: '#2196F3' },
+          }}
+          style={styles.chartStyle}
+        />
+      </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>✨ Deixe a tecnologia trabalhar por você</Text>
+      {/* Menu */}
+      <View style={styles.menuContainer}>
+        <Text style={styles.menuTitle}>Menu Principal</Text>
+        <View style={styles.menuGrid}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Products')}>
+            <Text style={styles.menuIcon}>📦</Text>
+            <Text style={styles.menuText}>Produtos</Text>
+            <Text style={styles.menuSubtext}>Gerenciar estoque</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('NewSale')}>
+            <Text style={styles.menuIcon}>💰</Text>
+            <Text style={styles.menuText}>Nova Venda</Text>
+            <Text style={styles.menuSubtext}>Registrar venda</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('SalesHistory')}>
+            <Text style={styles.menuIcon}>📊</Text>
+            <Text style={styles.menuText}>Histórico</Text>
+            <Text style={styles.menuSubtext}>Ver vendas</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Reports')}>
+            <Text style={styles.menuIcon}>📈</Text>
+            <Text style={styles.menuText}>Relatórios</Text>
+            <Text style={styles.menuSubtext}>Análises</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Botão Atualizar */}
+      <View style={styles.footerRefresh}>
+        <TouchableOpacity style={styles.refreshButton} onPress={() => loadDashboardData()}>
+          <Text style={styles.refreshButtonText}>🔄 Atualizar Informações</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 16,
-  },
-  header: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2196F3',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  statCard: {
-    width: '48%',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 15,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  salesCard: { borderLeftWidth: 4, borderLeftColor: '#2196F3' },
-  productsCard: { borderLeftWidth: 4, borderLeftColor: '#FF9800' },
-  profitCard: { borderLeftWidth: 4, borderLeftColor: '#4CAF50' },
-  pendingCard: { borderLeftWidth: 4, borderLeftColor: '#F44336' },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#666',
-    textTransform: 'uppercase',
-    textAlign: 'center',
-  },
-  mainButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    padding: 18,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 15,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  mainButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  secondaryButton: {
-    backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: '#2196F3',
-    borderRadius: 12,
-    padding: 15,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 10,
-  },
-  secondaryButtonText: {
-    color: '#2196F3',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  footer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  footerText: {
-    color: '#666',
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' },
+  loadingText: { marginTop: 10, color: '#666', fontSize: 16 },
+  header: { backgroundColor: '#2196F3', paddingTop: 50, paddingBottom: 30, paddingHorizontal: 20, alignItems: 'center' },
+  title: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 5 },
+  subtitle: { fontSize: 16, color: 'white', opacity: 0.9 },
+  cardsContainer: { padding: 20 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+  card: { width: '48%', padding: 20, borderRadius: 12, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  cardPrimary: { backgroundColor: '#2196F3' },
+  cardSuccess: { backgroundColor: '#4CAF50' },
+  cardInfo: { backgroundColor: '#FF9800' },
+  cardWarning: { backgroundColor: '#F44336' },
+  cardValue: { fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 5 },
+  cardLabel: { fontSize: 12, color: 'white', opacity: 0.9 },
+  chartContainer: { marginHorizontal: 20, marginBottom: 20 },
+  chartTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  chartStyle: { borderRadius: 12 },
+  menuContainer: { paddingHorizontal: 20, paddingBottom: 20 },
+  menuTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 20 },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  menuItem: { width: '48%', backgroundColor: 'white', padding: 20, borderRadius: 12, alignItems: 'center', marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+  menuIcon: { fontSize: 32, marginBottom: 10 },
+  menuText: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 5 },
+  menuSubtext: { fontSize: 12, color: '#666' },
+  footerRefresh: { alignItems: 'center', marginBottom: 30 },
+  refreshButton: { backgroundColor: '#2196F3', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 25 },
+  refreshButtonText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
 });

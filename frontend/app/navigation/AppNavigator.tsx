@@ -7,6 +7,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import NewProductScreen from '../screens/NewProductScreen';
 import NewSalesScreen from '../screens/NewSaleScreen';
 import ProductsScreen from '../screens/ProductsScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,6 +18,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="NewProduct" component={NewProductScreen} />
       <Stack.Screen name="Products" component={ProductsScreen} />
       <Stack.Screen name="NewSale" component={NewSalesScreen} />
